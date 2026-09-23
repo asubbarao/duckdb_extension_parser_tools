@@ -77,6 +77,33 @@ SELECT parse_functions('WITH ranked AS (SELECT name, rank() OVER (ORDER BY salar
 ----
 [{'function_name': rank, 'schema': main, 'context': select}, {'function_name': upper, 'schema': main, 'context': select}]
 
+# functions in FROM subqueries and table function arguments
+query I
+SELECT parse_functions('SELECT * FROM (SELECT avg(n) AS a FROM range(5) t(n)) s');
+----
+[{'function_name': avg, 'schema': main, 'context': select}]
+
+query I
+SELECT parse_functions('SELECT * FROM (SELECT avg(n) FROM range(abs(-5))) s JOIN (SELECT lower(x) FROM t) r ON true');
+----
+[{'function_name': avg, 'schema': main, 'context': select}, {'function_name': abs, 'schema': main, 'context': nested}, {'function_name': lower, 'schema': main, 'context': select}]
+
+# scalar and nested subqueries
+query I
+SELECT parse_functions('SELECT (SELECT max(x) FROM t)');
+----
+[{'function_name': max, 'schema': main, 'context': select}]
+
+query I
+SELECT parse_functions('SELECT * FROM t WHERE x > (SELECT min(y) FROM t2)');
+----
+[{'function_name': min, 'schema': main, 'context': select}]
+
+query I
+SELECT parse_functions('SELECT (SELECT sum(x) FROM (SELECT abs(y) AS x FROM t) nested)');
+----
+[{'function_name': sum, 'schema': main, 'context': select}, {'function_name': abs, 'schema': main, 'context': select}]
+
 # no functions
 query I
 SELECT parse_functions('SELECT name, age FROM users;');

@@ -66,6 +66,33 @@ SELECT parse_function_names('WITH ranked AS (SELECT name, rank() OVER (ORDER BY 
 ----
 [rank, upper]
 
+# functions in FROM subqueries and table function arguments
+query I
+SELECT parse_function_names('SELECT * FROM (SELECT avg(n) AS a FROM range(5) t(n)) s');
+----
+[avg]
+
+query I
+SELECT parse_function_names('SELECT * FROM (SELECT avg(n) FROM range(abs(-5))) s JOIN (SELECT lower(x) FROM t) r ON true');
+----
+[avg, abs, lower]
+
+# scalar and nested subqueries
+query I
+SELECT parse_function_names('SELECT (SELECT max(x) FROM t)');
+----
+[max]
+
+query I
+SELECT parse_function_names('SELECT * FROM t WHERE x > (SELECT min(y) FROM t2)');
+----
+[min]
+
+query I
+SELECT parse_function_names('SELECT (SELECT sum(x) FROM (SELECT abs(y) AS x FROM t) nested)');
+----
+[sum, abs]
+
 # no functions
 query I
 SELECT parse_function_names('SELECT name, age FROM users;');
